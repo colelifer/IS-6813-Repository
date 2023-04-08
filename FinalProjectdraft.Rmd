@@ -28,6 +28,7 @@ How should we predict popularity without Restaurant Ratings available in the dat
 How do older customers compare to newer ones?
 
 ```{r Setup, message=FALSE, warning=FALSE}
+# test comment
 knitr::opts_chunk$set(echo = TRUE)
 library(prettydoc)
 library(ggplot2)
