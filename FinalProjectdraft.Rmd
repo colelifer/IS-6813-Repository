@@ -370,7 +370,7 @@ New_Cust2 <- New_Cust2[!(is.na(New_Cust2$COUNTY) | New_Cust2$COUNTY==""), ]
 Cust_Model_Set <- New_Cust2[,!names(New_Cust2) %in% c("CUSTOMER_NUMBER_BLINDED","ON_BOARDING_DATE","New_Onboard", "cust_end_date", "Cust_Age_Yrs", "GEO_LONGITUDE", "GEO_LATITUDE", "DELIVERY_PLANT_DESCRIPTION", "SALES_OFFICE_DESCRIPTION", "MARKET_DESCRIPTION", "COLD_DRINK_CHANNEL_DESCRIPTION","CUSTOMER_ACTIVITY_CLUSTER_DESCRIPTION")]
 
 
-# test for shits and giggles
+# test for kicks and giggles
 #New_Custtest <- New_Cust2[,17:20]
 
 # Splitting Customer Data into Train and Test
