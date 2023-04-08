@@ -72,7 +72,7 @@ tic()
 
 ## Importing both files and combining for EDA
 
-CustData <- read.csv("FSOP_Customer_Data_v2.0.csv")
+CustData <- read.csv("FSOP_Customer_Data_v2.0 edited.csv")
 SalesData <- read.csv("FSOP_Sales_Data_v2.0.csv")
 
 
@@ -310,6 +310,47 @@ New_Cust2 <- New_Cust2 %>%
     Age_Group = factor(Age_Group, levels = c("1", "2", "3"))
   )
 
+#Factoring other variables
+
+New_Cust2 <- New_Cust2 %>%
+  mutate(
+    SALES_OFFICE_DESCRIPTION = factor(SALES_OFFICE_DESCRIPTION),
+    DELIVERY_PLANT_DESCRIPTION = factor(DELIVERY_PLANT_DESCRIPTION),
+    CUSTOMER_ACTIVITY_CLUSTER_DESCRIPTION = factor(CUSTOMER_ACTIVITY_CLUSTER_DESCRIPTION),
+    CUSTOMER_TRADE_CHANNEL_DESCRIPTION = factor(CUSTOMER_TRADE_CHANNEL_DESCRIPTION),
+    CUSTOMER_SUB_TRADE_CHANNEL_DESCRIPTION = factor(CUSTOMER_SUB_TRADE_CHANNEL_DESCRIPTION),
+    BUSINESS_TYPE_EXTENSION_DESCRIPTION = factor(BUSINESS_TYPE_EXTENSION_DESCRIPTION),
+    CUSTOMER_TRADE_CHANNEL_DESCRIPTION2 = factor(CUSTOMER_TRADE_CHANNEL_DESCRIPTION2),
+    MARKET_DESCRIPTION = factor(MARKET_DESCRIPTION),
+    COLD_DRINK_CHANNEL_DESCRIPTION = factor(COLD_DRINK_CHANNEL_DESCRIPTION),
+    ADDRESS_CITY = factor(ADDRESS_CITY),
+    COUNTY = factor(COUNTY),
+    ADDRESS_ZIP_CODE = as.numeric(ADDRESS_ZIP_CODE),
+    
+  )
+
+
+#test
+
+# Calculate the chi-squared statistic for all pairs of categorical variables
+chi_squared <- sapply(New_Cust2[, sapply(New_Cust2, is.factor)], function(x) sapply(New_Cust2[, sapply(New_Cust2, is.factor)], function(y) chisq.test(table(x, y))$statistic))
+
+# Extract the chi-squared values with the target variable
+chi_squared_with_target <- chi_squared[,"Age_Group"]
+
+# Sort the chi-squared values in descending order
+sorted_chi_squared <- sort(chi_squared_with_target, decreasing = TRUE)
+
+# Print the sorted chi-squared values
+print(sorted_chi_squared)
+
+# Select the top k variables based on the chi-squared values
+k <- 5
+selected_vars <- names(sorted_chi_squared)[1:k]
+
+#levels
+
+levels(New_Cust2$COLD_DRINK_CHANNEL_DESCRIPTION)
 
 ```
 
@@ -324,7 +365,9 @@ colSums(is.na(New_Cust2))
 
 New_Cust2 <- New_Cust2[!(is.na(New_Cust2$COUNTY) | New_Cust2$COUNTY==""), ]
 
-Cust_Model_Set <- New_Cust2[,!names(New_Cust2) %in% c("CUSTOMER_NUMBER_BLINDED","ON_BOARDING_DATE","New_Onboard", "cust_end_date", "Cust_Age_Yrs")]
+#Using chi-squared and other methods to reduce noise
+
+Cust_Model_Set <- New_Cust2[,!names(New_Cust2) %in% c("CUSTOMER_NUMBER_BLINDED","ON_BOARDING_DATE","New_Onboard", "cust_end_date", "Cust_Age_Yrs", "GEO_LONGITUDE", "GEO_LATITUDE", "DELIVERY_PLANT_DESCRIPTION", "SALES_OFFICE_DESCRIPTION", "MARKET_DESCRIPTION", "COLD_DRINK_CHANNEL_DESCRIPTION","CUSTOMER_ACTIVITY_CLUSTER_DESCRIPTION")]
 
 
 # test for shits and giggles
@@ -333,7 +376,7 @@ Cust_Model_Set <- New_Cust2[,!names(New_Cust2) %in% c("CUSTOMER_NUMBER_BLINDED",
 # Splitting Customer Data into Train and Test
 
 set.seed(123)
-LETSTrain <- createDataPartition(Cust_Model_Set$Age_Group, p=0.5, list=FALSE)
+LETSTrain <- createDataPartition(Cust_Model_Set$Age_Group, p=0.4, list=FALSE)
 
 CustTrain <- Cust_Model_Set[LETSTrain,]
 CustTest <- Cust_Model_Set[-LETSTrain,]
@@ -401,7 +444,7 @@ Even after removing the highly correlated predictors (ie. Customer Start Date vs
 
 # creating cv_function for re-use with different inputs
 
-cv_function <- function(df, target, nFolds, seedVal, classification, metrics_list)
+cv_function <- function(df, target, nFolds, seedVal, classification, metrics_list, laplace)
 {
 
   set.seed(seedVal)
@@ -416,7 +459,7 @@ cv_function <- function(df, target, nFolds, seedVal, classification, metrics_lis
    train_target <- df[-x,target]
    test_target <- df[x,target]
    
-   classification_model <- classification(train,train_target) 
+   classification_model <- classification(train,train_target, laplace = laplace) 
    
    pred<- predict(classification_model,test)
    
@@ -449,14 +492,15 @@ cv_function <- function(df, target, nFolds, seedVal, classification, metrics_lis
 
 #Entering in Model Specifics
 df <- Cust_Model_Set
-target <- 15 #index of Age_Group variable
+target <- 8 #index of Age_Group variable
 nFolds <- 3
 seedVal <- 123
+laplace <- 15
 assign("classification", naiveBayes)
 metrics_list <- c("ACC","PRECISION","TPR","F1")
 
 #Calling CV function
-cv_function(df, target, nFolds, seedVal, classification, metrics_list)
+cv_function(df, target, nFolds, seedVal, classification, metrics_list, laplace)
 
 
 ```
