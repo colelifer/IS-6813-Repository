@@ -434,8 +434,14 @@ mmetric(CustTest$Age_Group, predicted_Cust, metric="CONF")
 mmetric(CustTest$Age_Group, predicted_Cust, metric=c("ACC","TPR","PRECISION","F1"))
 
 
-
 ```
+
+```{r}
+#exporting results for viz
+CustTest$pred_age <- predicted_Cust
+write_csv(CustTest, file='test1.csv')
+```
+
 
 Even after removing the highly correlated predictors (ie. Customer Start Date vs. Age), Model Accuracy is over 62%. It does seem that our 2nd bucket produces the worst precision. This makes sense because it's the smallest sample size. I think we may be going down the right path in regards to customer data with the NB classifier. It seems like customer's geographic location must play a huge factor on success. However, this could purely be because certain areas (Zip Codes, etc) are newer markets. I will like to have a bigger dataset in the future to work with to verify if this is the case. I will continue with CV next.
 
@@ -751,3 +757,6 @@ I didn't run a tictoc function on my Naive Bayes classifier but I do know it was
 ## Closing Summary
 
 Overall, this was a great start towards the completion of this business problem. I believe we have the base models to build from and with more compute, fine tuning, and data cleaning, we could start seeing very impressive error metrics such as Accuracy for the classifier and high R^2 values for the linear regression. These models could practically be implemented once they are more fine tuned. 
+
+
+
