@@ -1,7 +1,7 @@
 ---
-title: 'Working Doc'
-author: "Cole Lifer"
-date: "3/19/23"
+title: 'Business Churn Prediction'
+author: "Cole Lifer, Richard Garbett, Jordan Harmer"
+date: "4/13/23"
 output:
   prettydoc::html_pretty:
     theme: tactile
@@ -72,7 +72,7 @@ tic()
 
 ## Importing both files and combining for EDA
 
-CustData <- read.csv("FSOP_Customer_Data_v2.0.csv")
+CustData <- read.csv("FSOP_Customer_Data_v2.0 edited.csv")
 SalesData <- read.csv("FSOP_Sales_Data_v2.0.csv")
 
 
@@ -310,6 +310,47 @@ New_Cust2 <- New_Cust2 %>%
     Age_Group = factor(Age_Group, levels = c("1", "2", "3"))
   )
 
+#Factoring other variables
+
+New_Cust2 <- New_Cust2 %>%
+  mutate(
+    SALES_OFFICE_DESCRIPTION = factor(SALES_OFFICE_DESCRIPTION),
+    DELIVERY_PLANT_DESCRIPTION = factor(DELIVERY_PLANT_DESCRIPTION),
+    CUSTOMER_ACTIVITY_CLUSTER_DESCRIPTION = factor(CUSTOMER_ACTIVITY_CLUSTER_DESCRIPTION),
+    CUSTOMER_TRADE_CHANNEL_DESCRIPTION = factor(CUSTOMER_TRADE_CHANNEL_DESCRIPTION),
+    CUSTOMER_SUB_TRADE_CHANNEL_DESCRIPTION = factor(CUSTOMER_SUB_TRADE_CHANNEL_DESCRIPTION),
+    BUSINESS_TYPE_EXTENSION_DESCRIPTION = factor(BUSINESS_TYPE_EXTENSION_DESCRIPTION),
+    CUSTOMER_TRADE_CHANNEL_DESCRIPTION2 = factor(CUSTOMER_TRADE_CHANNEL_DESCRIPTION2),
+    MARKET_DESCRIPTION = factor(MARKET_DESCRIPTION),
+    COLD_DRINK_CHANNEL_DESCRIPTION = factor(COLD_DRINK_CHANNEL_DESCRIPTION),
+    ADDRESS_CITY = factor(ADDRESS_CITY),
+    COUNTY = factor(COUNTY),
+    ADDRESS_ZIP_CODE = as.numeric(ADDRESS_ZIP_CODE),
+    
+  )
+
+
+#test
+
+# Calculate the chi-squared statistic for all pairs of categorical variables
+chi_squared <- sapply(New_Cust2[, sapply(New_Cust2, is.factor)], function(x) sapply(New_Cust2[, sapply(New_Cust2, is.factor)], function(y) chisq.test(table(x, y))$statistic))
+
+# Extract the chi-squared values with the target variable
+chi_squared_with_target <- chi_squared[,"Age_Group"]
+
+# Sort the chi-squared values in descending order
+sorted_chi_squared <- sort(chi_squared_with_target, decreasing = TRUE)
+
+# Print the sorted chi-squared values
+print(sorted_chi_squared)
+
+# Select the top k variables based on the chi-squared values
+k <- 5
+selected_vars <- names(sorted_chi_squared)[1:k]
+
+#levels
+
+levels(New_Cust2$COLD_DRINK_CHANNEL_DESCRIPTION)
 
 ```
 
@@ -324,24 +365,26 @@ colSums(is.na(New_Cust2))
 
 New_Cust2 <- New_Cust2[!(is.na(New_Cust2$COUNTY) | New_Cust2$COUNTY==""), ]
 
-Cust_Model_Set <- New_Cust2[,!names(New_Cust2) %in% c("CUSTOMER_NUMBER_BLINDED","ON_BOARDING_DATE","New_Onboard", "cust_end_date", "Cust_Age_Yrs")]
+#Using chi-squared and other methods to reduce noise
+
+Cust_Model_Set <- New_Cust2[,!names(New_Cust2) %in% c("CUSTOMER_NUMBER_BLINDED","ON_BOARDING_DATE","New_Onboard", "cust_end_date", "Cust_Age_Yrs", "GEO_LONGITUDE", "GEO_LATITUDE", "DELIVERY_PLANT_DESCRIPTION", "SALES_OFFICE_DESCRIPTION", "MARKET_DESCRIPTION", "COLD_DRINK_CHANNEL_DESCRIPTION","CUSTOMER_ACTIVITY_CLUSTER_DESCRIPTION")]
 
 
-# test for shits and giggles
+# test for kicks and giggles
 #New_Custtest <- New_Cust2[,17:20]
 
 # Splitting Customer Data into Train and Test
 
 set.seed(123)
-LETSTrain <- createDataPartition(Cust_Model_Set$Age_Group, p=0.5, list=FALSE)
+LETSTrain <- createDataPartition(Cust_Model_Set$Age_Group, p=0.4, list=FALSE)
 
 CustTrain <- Cust_Model_Set[LETSTrain,]
 CustTest <- Cust_Model_Set[-LETSTrain,]
 
 #basic metrics between splits
 
-summary(CustTrain)
-summary(CustTest)
+#summary(CustTrain)
+#summary(CustTest)
 
 # Checking rows
 nrow(CustTrain)
@@ -389,7 +432,11 @@ predicted_Cust <- predict(Cust_nb, CustTest)
 mmetric(CustTest$Age_Group, predicted_Cust, metric="CONF")
 mmetric(CustTest$Age_Group, predicted_Cust, metric=c("ACC","TPR","PRECISION","F1"))
 
+#predicted_Cust
 
+## Adding back predictions
+
+#cbind(BOD, resid = resid(fm), fitted = fitted(fm))
 
 ```
 
@@ -401,7 +448,7 @@ Even after removing the highly correlated predictors (ie. Customer Start Date vs
 
 # creating cv_function for re-use with different inputs
 
-cv_function <- function(df, target, nFolds, seedVal, classification, metrics_list)
+cv_function <- function(df, target, nFolds, seedVal, classification, metrics_list, laplace)
 {
 
   set.seed(seedVal)
@@ -416,7 +463,7 @@ cv_function <- function(df, target, nFolds, seedVal, classification, metrics_lis
    train_target <- df[-x,target]
    test_target <- df[x,target]
    
-   classification_model <- classification(train,train_target) 
+   classification_model <- classification(train,train_target, laplace = laplace) 
    
    pred<- predict(classification_model,test)
    
@@ -449,41 +496,27 @@ cv_function <- function(df, target, nFolds, seedVal, classification, metrics_lis
 
 #Entering in Model Specifics
 df <- Cust_Model_Set
-target <- 15 #index of Age_Group variable
+target <- 8 #index of Age_Group variable
 nFolds <- 3
 seedVal <- 123
+laplace <- 15
 assign("classification", naiveBayes)
 metrics_list <- c("ACC","PRECISION","TPR","F1")
 
 #Calling CV function
-cv_function(df, target, nFolds, seedVal, classification, metrics_list)
+cv_function(df, target, nFolds, seedVal, classification, metrics_list, laplace)
 
 
 ```
 
 Error metrics seem fairly similar once we cross-validate. Looks like we weren't initially over-fitted. I'm going to attempt this with a decision tree (Random Forest) model next to see if we may see better metrics.
 
-### Random Forest Continued
+## Random Forest
 
 Need to further partition and clean data for a randomForest model to work. We know that the data is massively imbalanced towards the 2nd bucket, therefore, we will need to perform some downsampling. However, this may actually hurt us since the sample size for bucket two is so small.
 ```{r updated RF, message=FALSE, warning=FALSE}
 
-RF_FullData <- Cust_Model_Set[,!names(Cust_Model_Set) %in% c("COUNTY","ADDRESS_CITY")]
-
-RF_FullData <- RF_FullData %>%
-  mutate(
-    SALES_OFFICE_DESCRIPTION = factor(SALES_OFFICE_DESCRIPTION),
-    DELIVERY_PLANT_DESCRIPTION = factor(DELIVERY_PLANT_DESCRIPTION),
-    CUSTOMER_ACTIVITY_CLUSTER_DESCRIPTION = factor(CUSTOMER_ACTIVITY_CLUSTER_DESCRIPTION),
-    CUSTOMER_TRADE_CHANNEL_DESCRIPTION = factor(CUSTOMER_TRADE_CHANNEL_DESCRIPTION),
-    CUSTOMER_SUB_TRADE_CHANNEL_DESCRIPTION = factor(CUSTOMER_SUB_TRADE_CHANNEL_DESCRIPTION),
-    BUSINESS_TYPE_EXTENSION_DESCRIPTION = factor(BUSINESS_TYPE_EXTENSION_DESCRIPTION),
-    CUSTOMER_TRADE_CHANNEL_DESCRIPTION2 = factor(CUSTOMER_TRADE_CHANNEL_DESCRIPTION2),
-    MARKET_DESCRIPTION = factor(MARKET_DESCRIPTION),
-    COLD_DRINK_CHANNEL_DESCRIPTION = factor(COLD_DRINK_CHANNEL_DESCRIPTION),
-    ADDRESS_ZIP_CODE = as.numeric(ADDRESS_ZIP_CODE),
-    
-  )
+RF_FullData <- Cust_Model_Set
 
 set.seed(123)
 rf_testtrn <- initial_split(RF_FullData, prop = 0.5,
@@ -575,7 +608,7 @@ head(custGP)
 
 LMCustData <- merge(New_Cust2, custGP , by="CUSTOMER_NUMBER_BLINDED")
 
-head(LMCustData)
+#head(LMCustData)
 
 
 ```
@@ -706,3 +739,11 @@ I didn't run a tictoc function on my Naive Bayes classifier but I do know it was
 ## Closing Summary
 
 Overall, this was a great start towards the completion of this business problem. I believe we have the base models to build from and with more compute, fine tuning, and data cleaning, we could start seeing very impressive error metrics such as Accuracy for the classifier and high R^2 values for the linear regression. These models could practically be implemented once they are more fine tuned. 
+
+# Final Summary
+
+## Results
+
+Overall, our model performed reasonably well at predicting customers in the 3-year age bucket. It's not perfect and it could be fine tuned, but we believe this was a great start towards a much larger conversation where the work performed here could act as a base for something far more intricate. 
+
+
